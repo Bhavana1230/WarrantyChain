@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WarrantyChain</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#161d2e; --panel2:#1c2436; --border:#2a3450;
+    --text:#e8ecf7; --muted:#8b96b3; --accent:#4f7cff; --accent2:#38c98f;
+    --danger:#ff5c6c; --warn:#ffb454;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  header{padding:18px 28px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  header h1{font-size:20px;margin:0}
+  header h1 span{color:var(--accent)}
+  #who{font-size:13px;color:var(--muted)}
+  nav{display:flex;gap:4px;padding:0 28px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+  nav button{background:none;border:none;color:var(--muted);padding:12px 16px;cursor:pointer;font-size:14px;border-bottom:2px solid transparent}
+  nav button.active{color:var(--text);border-bottom:2px solid var(--accent)}
+  main{padding:24px 28px;max-width:900px;margin:0 auto}
+  .panel{display:none}
+  .panel.active{display:block}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px}
+  .card h2{margin-top:0;font-size:16px}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  input,select,textarea{width:100%;padding:9px 10px;border-radius:6px;border:1px solid var(--border);background:var(--panel2);color:var(--text);font-size:14px}
+  textarea{min-height:60px}
+  button.btn{margin-top:14px;background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;font-size:14px}
+  button.btn.secondary{background:var(--panel2);border:1px solid var(--border)}
+  button.btn.danger{background:var(--danger)}
+  button.btn:hover{opacity:.9}
+  .row{display:flex;gap:12px}
+  .row>*{flex:1}
+  .msg{margin-top:10px;font-size:13px;padding:8px 10px;border-radius:6px}
+  .msg.ok{background:rgba(56,201,143,.15);color:var(--accent2)}
+  .msg.err{background:rgba(255,92,108,.15);color:var(--danger)}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+  th,td{text-align:left;padding:8px;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:500}
+  .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .pill.active{background:rgba(56,201,143,.2);color:var(--accent2)}
+  .pill.expired{background:rgba(255,92,108,.2);color:var(--danger)}
+  .pill.pending{background:rgba(255,180,84,.2);color:var(--warn)}
+  .pill.approved{background:rgba(56,201,143,.2);color:var(--accent2)}
+  .pill.rejected{background:rgba(255,92,108,.2);color:var(--danger)}
+  .pill.unsold{background:rgba(139,150,179,.2);color:var(--muted)}
+  .mono{font-family:Consolas,monospace;font-size:12px;word-break:break-all;color:var(--muted)}
+  .block{border-left:3px solid var(--accent);padding:10px 14px;margin-bottom:10px;background:var(--panel2);border-radius:0 8px 8px 0}
+  .block h4{margin:0 0 4px;font-size:13px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Warranty<span>Chain</span></h1>
+  <div id="who">Not logged in</div>
+</header>
+
+<nav id="nav"></nav>
+
+<main>
+
+  <!-- VERIFY (public) -->
+  <div class="panel active" data-panel="verify">
+    <div class="card">
+      <h2>Verify a product</h2>
+      <label>Serial number</label>
+      <input id="verifySerial" placeholder="e.g. WC-2026-000451">
+      <button class="btn" onclick="doVerify()">Verify</button>
+      <div id="verifyResult"></div>
+    </div>
+  </div>
+
+  <!-- AUTH -->
+  <div class="panel" data-panel="auth">
+    <div class="card">
+      <h2>Login</h2>
+      <label>Username</label><input id="loginUser">
+      <label>Password</label><input id="loginPass" type="password">
+      <button class="btn" onclick="doLogin()">Login</button>
+      <div id="loginMsg"></div>
+    </div>
+    <div class="card">
+      <h2>Register</h2>
+      <label>Username</label><input id="regUser">
+      <label>Password</label><input id="regPass" type="password">
+      <label>Role</label>
+      <select id="regRole">
+        <option value="manufacturer">Manufacturer</option>
+        <option value="owner">Owner / Retailer buyer</option>
+        <option value="service_center">Service Center</option>
+      </select>
+      <button class="btn secondary" onclick="doRegister()">Register</button>
+      <div id="regMsg"></div>
+    </div>
+  </div>
+
+  <!-- MANUFACTURER -->
+  <div class="panel" data-panel="manufacturer">
+    <div class="card">
+      <h2>Mint a new product</h2>
+      <div class="row">
+        <div><label>Serial number</label><input id="mSerial" placeholder="WC-2026-000451"></div>
+        <div><label>Warranty (months)</label><input id="mWarranty" type="number" value="24"></div>
+      </div>
+      <label>Product name</label><input id="mName" placeholder="Aegis Smart Router X2">
+      <button class="btn" onclick="mintProduct()">Mint on-chain</button>
+      <div id="mintMsg"></div>
+    </div>
+    <div class="card">
+      <h2>Record a sale</h2>
+      <div class="row">
+        <div><label>Serial number</label><input id="sSerial"></div>
+        <div><label>Buyer username (role: owner)</label><input id="sBuyer"></div>
+      </div>
+      <button class="btn" onclick="sellProduct()">Record sale</button>
+      <div id="sellMsg"></div>
+    </div>
+    <div class="card">
+      <h2>My manufactured products</h2>
+      <button class="btn secondary" onclick="loadManufactured()">Refresh</button>
+      <table id="mfgTable"><thead><tr><th>Serial</th><th>Name</th><th>Warranty</th><th>Owner</th><th>Status</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <!-- OWNER -->
+  <div class="panel" data-panel="owner">
+    <div class="card">
+      <h2>My products</h2>
+      <button class="btn secondary" onclick="loadMine()">Refresh</button>
+      <table id="mineTable"><thead><tr><th>Serial</th><th>Name</th><th>Purchase date</th><th>Status</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card">
+      <h2>Transfer ownership (resale)</h2>
+      <div class="row">
+        <div><label>Serial number</label><input id="tSerial"></div>
+        <div><label>New owner username</label><input id="tNewOwner"></div>
+      </div>
+      <button class="btn" onclick="transferProduct()">Transfer</button>
+      <div id="transferMsg"></div>
+    </div>
+    <div class="card">
+      <h2>File a warranty claim</h2>
+      <label>Serial number</label><input id="cSerial">
+      <label>Issue description</label><textarea id="cIssue"></textarea>
+      <button class="btn" onclick="fileClaim()">File claim</button>
+      <div id="claimMsg"></div>
+    </div>
+  </div>
+
+  <!-- SERVICE CENTER -->
+  <div class="panel" data-panel="service">
+    <div class="card">
+      <h2>Pending claims</h2>
+      <button class="btn secondary" onclick="loadPending()">Refresh</button>
+      <table id="pendingTable"><thead><tr><th>ID</th><th>Serial</th><th>Filed by</th><th>Issue</th><th>Action</th></tr></thead><tbody></tbody></table>
+      <div id="resolveMsg"></div>
+    </div>
+  </div>
+
+  <!-- CHAIN EXPLORER -->
+  <div class="panel" data-panel="chain">
+    <div class="card">
+      <h2>Chain integrity</h2>
+      <button class="btn secondary" onclick="loadChain()">Refresh</button>
+      <div id="chainStatus"></div>
+    </div>
+    <div id="chainBlocks"></div>
+  </div>
+
+</main>
+
+<script>
+const TABS = [
+  {id:"verify", label:"Verify", roles:null},
+  {id:"auth", label:"Login / Register", roles:"guest"},
+  {id:"manufacturer", label:"Manufacturer", roles:["manufacturer"]},
+  {id:"owner", label:"Owner", roles:["owner"]},
+  {id:"service", label:"Service Center", roles:["service_center"]},
+  {id:"chain", label:"Chain Explorer", roles:null},
+];
+let ME = null;
+
+function renderNav(){
+  const nav = document.getElementById("nav");
+  nav.innerHTML = "";
+  TABS.forEach(t=>{
+    if(t.roles==="guest" && ME) return;
+    if(Array.isArray(t.roles) && (!ME || !t.roles.includes(ME.role))) return;
+    const b = document.createElement("button");
+    b.textContent = t.label;
+    b.onclick = ()=>showPanel(t.id);
+    b.dataset.tab = t.id;
+    nav.appendChild(b);
+  });
+  if(ME){
+    const out = document.createElement("button");
+    out.textContent = "Logout ("+ME.username+")";
+    out.onclick = doLogout;
+    nav.appendChild(out);
+  }
+}
+
+function showPanel(id){
+  document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active", p.dataset.panel===id));
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
+}
+
+async function api(path, opts={}){
+  opts.headers = Object.assign({"Content-Type":"application/json"}, opts.headers||{});
+  opts.credentials = "same-origin";
+  const res = await fetch(path, opts);
+  let data = {};
+  try{ data = await res.json(); }catch(e){}
+  if(!res.ok){ throw (data.error || res.statusText); }
+  return data;
+}
+
+function msg(el, text, ok){
+  el.innerHTML = `<div class="msg ${ok?'ok':'err'}">${text}</div>`;
+}
+
+async function refreshMe(){
+  const d = await api("/api/me");
+  ME = d.user;
+  document.getElementById("who").textContent = ME ? `${ME.username} (${ME.role})` : "Not logged in";
+  renderNav();
+  showPanel(ME ? (ME.role==="manufacturer"?"manufacturer":ME.role==="owner"?"owner":"service") : "verify");
+}
+
+async function doLogin(){
+  const el = document.getElementById("loginMsg");
+  try{
+    await api("/api/login", {method:"POST", body: JSON.stringify({
+      username: document.getElementById("loginUser").value,
+      password: document.getElementById("loginPass").value,
+    })});
+    msg(el, "Logged in.", true);
+    await refreshMe();
+  }catch(e){ msg(el, e, false); }
+}
+
+async function doRegister(){
+  const el = document.getElementById("regMsg");
+  try{
+    await api("/api/register", {method:"POST", body: JSON.stringify({
+      username: document.getElementById("regUser").value,
+      password: document.getElementById("regPass").value,
+      role: document.getElementById("regRole").value,
+    })});
+    msg(el, "Registered! You can now log in.", true);
+  }catch(e){ msg(el, e, false); }
+}
+
+async function doLogout(){
+  await api("/api/logout", {method:"POST"});
+  await refreshMe();
+}
+
+async function doVerify(){
+  const el = document.getElementById("verifyResult");
+  const serial = document.getElementById("verifySerial").value.trim();
+  el.innerHTML = "Checking...";
+  try{
+    const res = await fetch("/api/verify/"+encodeURIComponent(serial));
+    const d = await res.json();
+    if(!d.authentic){
+      el.innerHTML = `<div class="msg err">${d.message}</div>`;
+      return;
+    }
+    const p = d.product;
+    el.innerHTML = `
+      <div class="msg ${d.chain_intact?'ok':'err'}">${d.chain_intact? 'Genuine product \u2014 chain verified intact.' : 'WARNING: chain integrity check failed \u2014 '+d.chain_issue}</div>
+      <table>
+        <tr><th>Name</th><td>${p.name}</td></tr>
+        <tr><th>Manufacturer</th><td>${p.manufacturer}</td></tr>
+        <tr><th>Manufactured</th><td>${p.manufacture_date}</td></tr>
+        <tr><th>Current owner</th><td>${p.current_owner || '\u2014 (not yet sold)'}</td></tr>
+        <tr><th>Warranty status</th><td><span class="pill ${p.warranty_status}">${p.warranty_status}</span></td></tr>
+        <tr><th>Warranty expiry</th><td>${p.warranty_expiry || '\u2014'}</td></tr>
+      </table>
+      <h3 style="font-size:14px;margin-top:16px">On-chain history</h3>
+      ${d.history.map(h=>`<div class="block"><h4>${h.event} \u2014 ${h.timestamp}</h4><div class="mono">${JSON.stringify(h.data)}</div><div class="mono">hash: ${h.hash}</div></div>`).join("")}
+    `;
+  }catch(e){ el.innerHTML = `<div class="msg err">${e}</div>`; }
+}
+
+async function mintProduct(){
+  const el = document.getElementById("mintMsg");
+  try{
+    const d = await api("/api/products/mint", {method:"POST", body: JSON.stringify({
+      serial_number: document.getElementById("mSerial").value.trim(),
+      name: document.getElementById("mName").value.trim(),
+      warranty_months: document.getElementById("mWarranty").value,
+    })});
+    msg(el, `Minted \u2014 block #${d.block_index}, hash ${d.hash.slice(0,16)}...`, true);
+    loadManufactured();
+  }catch(e){ msg(el, e, false); }
+}
+
+async function sellProduct(){
+  const el = document.getElementById("sellMsg");
+  try{
+    const serial = document.getElementById("sSerial").value.trim();
+    const d = await api(`/api/products/${encodeURIComponent(serial)}/sell`, {method:"POST", body: JSON.stringify({
+      buyer_username: document.getElementById("sBuyer").value.trim(),
+    })});
+    msg(el, `Sale recorded \u2014 block #${d.block_index}`, true);
+    loadManufactured();
+  }catch(e){ msg(el, e, false); }
+}
+
+async function loadManufactured(){
+  const d = await api("/api/products/manufactured");
+  const tbody = document.querySelector("#mfgTable tbody");
+  tbody.innerHTML = d.products.map(p=>`<tr>
+    <td>${p.serial_number}</td><td>${p.name}</td><td>${p.warranty_months}mo</td>
+    <td>${p.current_owner||'\u2014'}</td><td><span class="pill ${p.status}">${p.status}</span></td>
+  </tr>`).join("");
+}
+
+async function loadMine(){
+  const d = await api("/api/products/mine");
+  const tbody = document.querySelector("#mineTable tbody");
+  tbody.innerHTML = d.products.map(p=>`<tr>
+    <td>${p.serial_number}</td><td>${p.name}</td><td>${p.purchase_date||'\u2014'}</td>
+    <td><span class="pill ${p.status}">${p.status}</span></td>
+  </tr>`).join("");
+}
+
+async function transferProduct(){
+  const el = document.getElementById("transferMsg");
+  try{
+    const serial = document.getElementById("tSerial").value.trim();
+    const d = await api(`/api/products/${encodeURIComponent(serial)}/transfer`, {method:"POST", body: JSON.stringify({
+      new_owner_username: document.getElementById("tNewOwner").value.trim(),
+    })});
+    msg(el, `Transferred \u2014 block #${d.block_index}`, true);
+    loadMine();
+  }catch(e){ msg(el, e, false); }
+}
+
+async function fileClaim(){
+  const el = document.getElementById("claimMsg");
+  try{
+    const serial = document.getElementById("cSerial").value.trim();
+    const d = await api(`/api/products/${encodeURIComponent(serial)}/claim`, {method:"POST", body: JSON.stringify({
+      issue: document.getElementById("cIssue").value.trim(),
+    })});
+    msg(el, `Claim #${d.claim_id} filed \u2014 block #${d.block_index}`, true);
+  }catch(e){ msg(el, e, false); }
+}
+
+async function loadPending(){
+  const d = await api("/api/claims/pending");
+  const tbody = document.querySelector("#pendingTable tbody");
+  tbody.innerHTML = d.claims.map(c=>`<tr>
+    <td>${c.id}</td><td>${c.serial_number}</td><td>${c.filed_by}</td><td>${c.issue}</td>
+    <td>
+      <button class="btn" style="margin:0" onclick="resolveClaim(${c.id},'approved')">Approve</button>
+      <button class="btn danger" style="margin:0" onclick="resolveClaim(${c.id},'rejected')">Reject</button>
+    </td>
+  </tr>`).join("");
+}
+
+async function resolveClaim(id, decision){
+  const el = document.getElementById("resolveMsg");
+  try{
+    await api(`/api/claims/${id}/resolve`, {method:"POST", body: JSON.stringify({decision, note:""})});
+    msg(el, `Claim #${id} ${decision}.`, true);
+    loadPending();
+  }catch(e){ msg(el, e, false); }
+}
+
+async function loadChain(){
+  const d = await api("/api/chain");
+  document.getElementById("chainStatus").innerHTML =
+    `<div class="msg ${d.valid?'ok':'err'}">${d.valid? 'Chain intact \u2014 no tampering detected.' : 'TAMPERING DETECTED: '+d.issue}</div>`;
+  document.getElementById("chainBlocks").innerHTML = d.blocks.slice().reverse().map(b=>`
+    <div class="block">
+      <h4>#${b.index} \u2014 ${b.event_type} \u2014 ${b.timestamp}</h4>
+      <div class="mono">${JSON.stringify(b.data)}</div>
+      <div class="mono">hash: ${b.hash}</div>
+      <div class="mono">prev: ${b.previous_hash}</div>
+    </div>`).join("");
+}
+
+// tab clicks for panels without dedicated buttons need this fallback
+document.addEventListener("click", e=>{});
+
+refreshMe();
+loadChain();
+</script>
+</body>
+</html>
